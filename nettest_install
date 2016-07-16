@@ -1,0 +1,151 @@
+#!/bin/bash
+#
+# Install the Nettest software on a base Raspberry pi.
+#
+if [ "$(whoami)" != "root" ]
+then
+	echo "You must be root to run this script"
+	exit 1
+fi
+
+if [ ! -f /home/pi/root_expanded ]
+then
+
+	#Set default target to be non-graphical
+	systemctl set-default multi-user.target
+
+
+	#
+	# Copy the raspi-config script to a new file and turn INTERACTIVE=False
+	#
+	INTERACTIVE_CONF='/usr/bin/raspi-config'
+	NONINTERACTIVE_CONF='/home/pi/raspi-config_non-interactive'
+	echo "Expandind file system"
+	cat ${INTERACTIVE_CONF} | sed 's/INTERACTIVE=True/INTERACTIVE=False/'> ${NONINTERACTIVE_CONF}
+
+	# source the script
+	source ${NONINTERACTIVE_CONF}
+
+	# Use the script from the config script
+	do_expand_rootfs
+
+	:> /home/pi/root_expanded 
+
+fi
+
+#
+# Check if we have run the apt-get upgrade yet
+if [ ! -f /home/pi/apt_upgraded ]
+then
+	echo "Performing OS updates and package installations"
+	# We have not upgraded yet.
+	apt-get -y remove dphys-swapfile
+	apt-get update
+	apt-get -y upgrade
+	apt-get -y install vim mlocate dnsutils
+	apt-get -y autoremove
+
+	# Set the Semaphore
+	:>  /home/pi/apt_upgraded
+#	reboot
+else
+	echo "Initial system upgrade has been completed"
+
+fi
+
+LOCALEGEN_FILE='/etc/locale.gen'
+LOCALE_FILE='/etc/default/locale'
+LOCALE="en_US.UTF-8"
+TIMEZONE="America/Chicago"
+
+
+echo "Setting the Locale"
+
+
+# Set the locale of the system
+# Save the original and then comment out all locals then set to en_US.UTF-8
+mv -f ${LOCALEGEN_FILE} ${LOCALEGEN_FILE}.orig
+sed '/^[^#]/s~^~# ~;/en_US.UTF\-8/s~^# ~~' ${LOCALEGEN_FILE}.orig > ${LOCALEGEN_FILE}
+2>/dev/null locale-gen --purge
+
+# mv ${LOCALE_FILE} ${LOCALE_FILE}.orig
+# echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' > ${LOCALE_FILE}
+
+echo "Setting Time Zone"
+echo "${TIMEZONE} > /etc/timezone
+2>/dev/null dpkg-reconfigure -f noninteractive tzdata
+
+echo "Configuring keyboard"
+
+echo "
+keyboard-configuration  keyboard-configuration/altgr    select  The default for the keyboard layout
+keyboard-configuration  keyboard-configuration/switch   select  No temporary switch
+keyboard-configuration  keyboard-configuration/modelcode        string  pc101
+keyboard-configuration  keyboard-configuration/compose  select  No compose key
+keyboard-configuration  keyboard-configuration/layoutcode       string  us
+keyboard-configuration  keyboard-configuration/xkb-keymap       select  us
+keyboard-configuration  keyboard-configuration/model    select  Generic 101-key PC
+keyboard-configuration  keyboard-configuration/variantcode      string
+keyboard-configuration  keyboard-configuration/optionscode      string
+keyboard-configuration  keyboard-configuration/unsupported_layout       boolean true
+keyboard-configuration  keyboard-configuration/variant  select  English (US)
+keyboard-configuration  keyboard-configuration/store_defaults_in_debconf_db     boolean true
+keyboard-configuration  keyboard-configuration/unsupported_config_options       boolean true
+keyboard-configuration  keyboard-configuration/unsupported_options      boolean true
+keyboard-configuration  keyboard-configuration/layout   select  English (US)
+keyboard-configuration  keyboard-configuration/ctrl_alt_bksp    boolean false
+keyboard-configuration  keyboard-configuration/unsupported_config_layout        boolean true
+keyboard-configuration  keyboard-configuration/toggle   select  No toggling
+" > /tmp/keyboard
+
+2>/dev/null debconf-set-selections /tmp/keyboard
+
+2>/dev/null DEBIAN_FRONTEND=noninteractive dpkg-reconfigure keyboard-configuration
+
+
+echo "Configuring WiFi Country"
+# Borrowed from the raspi-config script
+COUNTRY=US
+if [ -e /etc/wpa_supplicant/wpa_supplicant.conf ]
+then
+	if grep -q "^country=" /etc/wpa_supplicant/wpa_supplicant.conf
+	then
+		sed -i "s/^country=.*/country=$COUNTRY/g" /etc/wpa_supplicant/wpa_supplicant.conf
+	else
+		sed -i "1i country=$COUNTRY" /etc/wpa_supplicant/wpa_supplicant.conf
+	fi
+else
+	echo "country=$COUNTRY" > /etc/wpa_supplicant/wpa_supplicant.conf
+fi
+
+echo "Setting up WiringPi"
+cd /home/pi
+git clone git://git.drogon.net/wiringPi
+cd WiringPi
+./build
+
+echo "Getting the NetTest tool"
+cd /home/pi
+git clone https://github.com/dalenoll/nettest.git
+
+echo "Setting up the NetTest tool"
+cd nettest
+
+#
+# Turn off logging
+cp etc/rsyslog.conf /etc/
+
+#
+# DNS resolver needs to be on a writable file system
+cp etc/resolvconf.conf /etc/
+rm /etc/resolv.conf 
+ln -s /var/run/resolv.conf /etc/resolv.conf
+
+# The script
+cp usr/local/bin/nettest /usr/local/bin/
+
+# Create the nettest service
+cp lib/systemd/system/nettest.service /lib/systemd/system/
+systemctl enable nettest
+
+
