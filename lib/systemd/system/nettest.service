@@ -1,0 +1,13 @@
+[Unit]
+Description=ResTech Network Testing
+After=network.target
+
+[Service]
+EnvironmentFile=-/etc/default/nettest
+ExecStart=/usr/local/bin/nettest
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

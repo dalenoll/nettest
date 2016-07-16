@@ -1,0 +1,104 @@
+#!/bin/bash
+#
+#
+# Variables
+GPIO='/usr/local/bin/gpio -g'
+CHECK=4
+LINK=17
+IP=18
+IPPING=27
+DNS=22
+REG=23
+
+function cleanup {
+	for PIN in ${CHECK} ${LINK} ${IP} ${IPPING} ${DNS} ${REG}
+	do 
+		${GPIO} write ${PIN} 0
+	done
+}
+
+trap cleanup EXIT
+
+
+# Init
+for PIN in ${CHECK} ${LINK} ${IP} ${IPPING} ${DNS} ${REG}
+do 
+    ${GPIO} mode ${PIN} output
+done
+
+while true
+do
+
+	${GPIO} write ${CHECK} 1
+
+	# Carrier test
+	echo "Carrier"
+	if ip add show dev eth0 | head -1 | grep -q ',UP,'
+	then
+		${GPIO} write ${LINK} 1
+		# IP Test
+		echo "IP Addr"
+		ADDR=$(ip add show dev eth0 | grep inet | awk '{print $2;}')
+		if [ "${ADDR}" ]
+		then
+			# Test for 169.254 address
+			if [ "${ADDR:0:7}" = "169.254" ]
+			then
+				# No REAL Address yet
+				echo "    169.254 address"
+				${GPIO} write ${IP} 1
+				${GPIO} write ${IP} 0
+			else
+				${GPIO} write ${IP} 1
+					
+
+				# IP Ping Test
+				echo "Ping IP"
+				if >/dev/null 2>&1 ping -n -q -w 1 -c 1 8.8.8.8
+				then
+					${GPIO} write ${IPPING} 1
+				else
+					${GPIO} write ${IPPING} 0
+				fi
+
+				# DNS Test
+				echo "DNS Lookup"
+				if host -W 1 -C google.com | grep -q SOA
+				then
+					${GPIO} write ${DNS} 1
+				else
+					${GPIO} write ${DNS} 0
+				fi
+
+				# Reg server test Test
+				echo "Reg Server Test"
+				if 2>/dev/null curl www.google.com | grep -q '302 Found'
+				then
+					${GPIO} write ${REG} 1
+				else
+					${GPIO} write ${REG} 0
+				fi
+			fi
+		else  
+			${GPIO} write ${IP} 0
+			${GPIO} write ${IPPING} 0
+			${GPIO} write ${DNS} 0
+			${GPIO} write ${REG} 0
+		fi
+	else
+		
+		${GPIO} write ${LINK} 0
+		${GPIO} write ${IP} 0
+		${GPIO} write ${IPPING} 0
+		${GPIO} write ${DNS} 0
+		${GPIO} write ${REG} 0
+	fi
+
+
+
+	
+	${GPIO} write ${CHECK} 0
+
+	echo
+	sleep 0.5
+done
