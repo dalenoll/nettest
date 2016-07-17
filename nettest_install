@@ -8,18 +8,22 @@ then
 	exit 1
 fi
 
+INTERACTIVE_CONF='/usr/bin/raspi-config'
+NONINTERACTIVE_CONF='/root/raspi-config_non-interactive'
+
 if [ ! -f /home/pi/root_expanded ]
 then
 
 	#Set default target to be non-graphical
 	systemctl set-default multi-user.target
 
+	# set rc.local to restart this script
+	sed '/exit 0/i/root/nettest/nettest_install
+' -i /etc/rc.local
 
 	#
 	# Copy the raspi-config script to a new file and turn INTERACTIVE=False
 	#
-	INTERACTIVE_CONF='/usr/bin/raspi-config'
-	NONINTERACTIVE_CONF='/home/pi/raspi-config_non-interactive'
 	echo "Expandind file system"
 	cat ${INTERACTIVE_CONF} | sed 's/INTERACTIVE=True/INTERACTIVE=False/'> ${NONINTERACTIVE_CONF}
 
@@ -71,8 +75,8 @@ mv -f ${LOCALEGEN_FILE} ${LOCALEGEN_FILE}.orig
 sed '/^[^#]/s~^~# ~;/en_US.UTF\-8/s~^# ~~' ${LOCALEGEN_FILE}.orig > ${LOCALEGEN_FILE}
 2>/dev/null locale-gen --purge
 
-# mv ${LOCALE_FILE} ${LOCALE_FILE}.orig
-# echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' > ${LOCALE_FILE}
+mv ${LOCALE_FILE} ${LOCALE_FILE}.orig
+echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' > ${LOCALE_FILE}
 
 echo "Setting Time Zone"
 echo "${TIMEZONE}" > /etc/timezone
@@ -122,14 +126,14 @@ else
 fi
 
 echo "Setting up WiringPi"
-cd /home/pi
+cd /root
 git clone git://git.drogon.net/wiringPi
-cd WiringPi
+cd wiringPi
 ./build
 
-echo "Getting the NetTest tool"
-cd /home/pi
-git clone https://github.com/dalenoll/nettest.git
+# echo "Getting the NetTest tool"
+#cd /root
+# git clone https://github.com/dalenoll/nettest.git
 
 echo "Setting up the NetTest tool"
 cd nettest
@@ -151,4 +155,8 @@ cp usr/local/bin/nettest /usr/local/bin/
 cp lib/systemd/system/nettest.service /lib/systemd/system/
 systemctl enable nettest
 
+echo 'alias ll="ls -l"' >> /etc/bash.bashrc
+
+echo "Setting file systems as Read Only on next reboot"
+sed '/mmcblk/s~defaults~ro~' -i /etc/fstab
 
