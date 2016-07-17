@@ -65,6 +65,9 @@ LOCALE_FILE='/etc/default/locale'
 LOCALE="en_US.UTF-8"
 TIMEZONE="America/Chicago"
 
+# remove the call to this script in rc.local
+sed '/nettest/d' -i /etc/rc.local
+
 
 echo "Setting the Locale"
 
@@ -158,9 +161,6 @@ cp lib/systemd/system/nettest.service /lib/systemd/system/
 systemctl enable nettest
 
 echo 'alias ll="ls -l"' >> /etc/bash.bashrc
-
-# remove the call to this script in rc.local
-sed '/nettest/d' -i /etc/rc.local
 
 echo "Setting file systems as Read Only on next reboot"
 sed '/mmcblk/s~defaults~ro~' -i /etc/fstab
