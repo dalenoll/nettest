@@ -75,7 +75,7 @@ sed '/^[^#]/s~^~# ~;/en_US.UTF\-8/s~^# ~~' ${LOCALEGEN_FILE}.orig > ${LOCALEGEN_
 # echo -e 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' > ${LOCALE_FILE}
 
 echo "Setting Time Zone"
-echo "${TIMEZONE} > /etc/timezone
+echo "${TIMEZONE}" > /etc/timezone
 2>/dev/null dpkg-reconfigure -f noninteractive tzdata
 
 echo "Configuring keyboard"
