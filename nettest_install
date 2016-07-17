@@ -107,6 +107,8 @@ keyboard-configuration  keyboard-configuration/toggle   select  No toggling
 
 2>/dev/null debconf-set-selections /tmp/keyboard
 
+cp /root/nettest/etc/default/keyboard /etc/default/
+
 2>/dev/null DEBIAN_FRONTEND=noninteractive dpkg-reconfigure keyboard-configuration
 
 
@@ -136,7 +138,7 @@ cd wiringPi
 # git clone https://github.com/dalenoll/nettest.git
 
 echo "Setting up the NetTest tool"
-cd nettest
+cd /root/nettest
 
 #
 # Turn off logging
