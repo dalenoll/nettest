@@ -38,7 +38,7 @@ do
 		${GPIO} write ${LINK} 1
 		# IP Test
 		echo "IP Addr"
-		ADDR=$(ip add show dev eth0 | grep inet | awk '{print $2;}')
+		ADDR=$(ip add show dev eth0 | grep 'inet ' | awk '{print $2;}')
 		if [ "${ADDR}" ]
 		then
 			# Test for 169.254 address
