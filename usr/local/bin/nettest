@@ -49,7 +49,7 @@ do
 				${GPIO} write ${IP} 1
 				${GPIO} write ${IP} 0
 			else
-				echo "     DHCP address"
+				echo "     DHCP address ${ADDR}"
 				${GPIO} write ${IP} 1
 					
 
