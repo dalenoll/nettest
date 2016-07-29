@@ -49,24 +49,29 @@ do
 				${GPIO} write ${IP} 1
 				${GPIO} write ${IP} 0
 			else
+				echo "     DHCP address"
 				${GPIO} write ${IP} 1
 					
 
 				# IP Ping Test
-				echo "Ping IP"
+				echo "Ping IP 8.8.8.8"
 				if >/dev/null 2>&1 ping -n -q -w 1 -c 1 8.8.8.8
 				then
+					echo "  Ping OK"
 					${GPIO} write ${IPPING} 1
 				else
+					echo "  Ping Failed"
 					${GPIO} write ${IPPING} 0
 				fi
 
 				# DNS Test
-				echo "DNS Lookup"
+				echo "DNS Lookup of google SOA via Regserver DNS server"
 				if host -W 1 -C google.com | grep -q SOA
 				then
+					echo "  DNS Lookup OK"
 					${GPIO} write ${DNS} 1
 				else
+					echo "  DNS Lookup Failed"
 					${GPIO} write ${DNS} 0
 				fi
 
@@ -74,8 +79,10 @@ do
 				echo "Reg Server Test"
 				if 2>/dev/null curl www.google.com | grep -q '302 Found'
 				then
+					echo "   Redirect to Regserver OK"
 					${GPIO} write ${REG} 1
 				else
+					echo "   Redirect to Regserver FAILED"
 					${GPIO} write ${REG} 0
 				fi
 			fi
